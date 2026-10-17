@@ -1,0 +1,3 @@
+Parser and synthetic regression fixtures are extracted/adapted from tauliang/training-lens (Apache-2.0), source commit 66ef6802d854394cbb4753c727672e1c6416336c. Copyright 2026 Tau Liang. See LICENSE.
+
+FIT decoding uses fitdecode 0.11.0 (MIT), Copyright Jean-Charles Lefebvre, installed as a declared dependency rather than vendored or modified. https://github.com/polyvertex/fitdecode — its distribution includes LICENSE.txt.
