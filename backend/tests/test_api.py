@@ -99,3 +99,17 @@ class ApiTests(unittest.TestCase):
         self.assertLessEqual(len(rows), 20)
         self.assertIn(200, [r["hr"] for r in rows])
         self.assertTrue(all("latitude" not in r for r in rows))
+
+    def test_openapi_has_typed_public_responses(self):
+        schema = app.openapi()
+        responses = schema["paths"]["/api/imports"]["post"]["responses"]
+        self.assertEqual(
+            responses["202"]["content"]["application/json"]["schema"]["$ref"],
+            "#/components/schemas/ImportJobResponse",
+        )
+        self.assertNotIn(
+            "archive_path",
+            schema["components"]["schemas"]["ImportJobResponse"]["properties"],
+        )
+        self.assertIn("Configuration", schema["components"]["schemas"])
+        self.assertIn("SnapshotResponse", schema["components"]["schemas"])

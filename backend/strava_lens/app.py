@@ -2,7 +2,7 @@
 
 import hmac
 import os
-from typing import Annotated
+from typing import Annotated, Literal, Any
 from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -48,6 +48,35 @@ class Configuration(BaseModel):
         return value
 
 
+class ImportJobResponse(BaseModel):
+    """Public job state excludes private archive paths and persisted configuration."""
+
+    id: str
+    status: Literal["queued", "running", "ready", "failed"]
+    snapshot_id: str | None
+    created_at: float
+    updated_at: float
+    attempts: int
+    progress: int
+    error: str | None
+
+
+class SnapshotResponse(BaseModel):
+    id: str
+    status: Literal["ready"]
+    created_at: float
+    manifest: dict[str, Any]
+    active: bool
+
+
+class ActivatedSnapshot(BaseModel):
+    id: str
+
+
+class ConfigurationUpdateResponse(Configuration):
+    requires_reimport: bool
+
+
 @app.get("/api/health")
 def health(session: DB):
     session.execute(select(1))
@@ -70,7 +99,7 @@ def job_json(job):
     }
 
 
-@app.post("/api/imports", status_code=202)
+@app.post("/api/imports", status_code=202, response_model=ImportJobResponse)
 def upload(session: DB, file: UploadFile = File(...)):
     try:
         return job_json(enqueue(file.file, session))
@@ -78,7 +107,7 @@ def upload(session: DB, file: UploadFile = File(...)):
         raise HTTPException(413, "Archive exceeds upload limit") from None
 
 
-@app.get("/api/imports")
+@app.get("/api/imports", response_model=list[ImportJobResponse])
 def jobs(session: DB):
     return [
         job_json(j)
@@ -88,7 +117,7 @@ def jobs(session: DB):
     ]
 
 
-@app.get("/api/imports/{job_id}")
+@app.get("/api/imports/{job_id}", response_model=ImportJobResponse)
 def job(job_id: str, session: DB):
     row = session.get(ImportJob, job_id)
     if not row:
@@ -96,7 +125,7 @@ def job(job_id: str, session: DB):
     return job_json(row)
 
 
-@app.post("/api/imports/{job_id}/retry")
+@app.post("/api/imports/{job_id}/retry", response_model=ImportJobResponse)
 def retry(job_id: str, session: DB):
     row = session.get(ImportJob, job_id)
     if not row or row.status != "failed":
@@ -106,7 +135,7 @@ def retry(job_id: str, session: DB):
     return job_json(row)
 
 
-@app.get("/api/snapshots")
+@app.get("/api/snapshots", response_model=list[SnapshotResponse])
 def snapshots(session: DB):
     active = session.get(Setting, "active_snapshot")
     return [
@@ -125,7 +154,7 @@ def snapshots(session: DB):
     ]
 
 
-@app.post("/api/snapshots/{snapshot_id}/activate")
+@app.post("/api/snapshots/{snapshot_id}/activate", response_model=ActivatedSnapshot)
 def activate(snapshot_id: str, session: DB):
     row = session.get(Snapshot, snapshot_id)
     if not row or row.status != "ready":
@@ -135,13 +164,13 @@ def activate(snapshot_id: str, session: DB):
     return {"id": snapshot_id}
 
 
-@app.get("/api/config")
+@app.get("/api/config", response_model=Configuration)
 def config(session: DB):
     row = session.get(Setting, "config")
     return row.value if row else Configuration().model_dump()
 
 
-@app.put("/api/config")
+@app.put("/api/config", response_model=ConfigurationUpdateResponse)
 def configure(value: Configuration, session: DB):
     session.merge(Setting(key="config", value=value.model_dump()))
     session.commit()
