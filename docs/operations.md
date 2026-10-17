@@ -4,16 +4,50 @@ Strava Lens is a single-athlete application. The Python parser remains independe
 
 ## Docker Compose
 
-Install Docker with Compose v2. Copy `.env.example` to `.env` and generate two independent random secrets (the example shows a command). Create an `inbox` directory, then run:
+Install Docker Desktop or Docker Engine with Compose v2. Run the following from the repository root. The first run builds the images automatically; Python and Node.js are not required on the host.
+
+### One-time configuration
+
+Copy `.env.example` to `.env`. Set `POSTGRES_PASSWORD` and `TRAINING_LENS_TOKEN` to **different random URL-safe values**, for example by running `openssl rand -hex 32` twice. Do not commit `.env`.
+
+Create a folder on your computer for Strava exports. By default the app watches **`$HOME/StravaLens/inbox`**, outside the repository:
 
 ```sh
-mkdir -p inbox
-docker compose up --build -d
+mkdir -p "$HOME/StravaLens/inbox"
 ```
 
-Open http://localhost:8080 and enter the token from `.env`. The web port binds to loopback. Use an authenticated TLS reverse proxy for access across machines; do not expose the database or plaintext HTTP publicly. Keep the application token private. The app is designed for one trusted athlete, not mutually untrusted tenants.
+To use another folder or an external disk, set an absolute path in `.env`:
 
-The migration service upgrades the database before API and worker startup. The worker and API share staged imports; the inbox is mounted read-only. Upload a Strava export using Imports, or copy a completed ZIP into `inbox` using a temporary filename followed by an atomic rename to `.zip`. Do not overwrite a file while importing. Worker progress and failed imports appear in Imports. Previously ready data remains visible while another import runs.
+```dotenv
+STRAVA_INBOX_DIR=/Volumes/Fitness/Strava/inbox
+```
+
+Create that folder before startup. Paths with spaces can be quoted, for example `STRAVA_INBOX_DIR="/Volumes/My Drive/Strava/inbox"`. On Windows, use a Docker-accessible absolute path such as `C:/Users/Alex/StravaLens/inbox`. Docker Desktop may ask you to share the folder or external drive. On macOS, a VM may also need permission to access protected folders such as Documents; choose a shared folder outside those locations if necessary. The worker runs as UID 10001: on Linux, give that user read access to the ZIPs and read/traverse access to the inbox. The mount is read-only; the app never modifies the original ZIPs.
+
+### Start the app
+
+```sh
+docker compose up
+```
+
+This builds missing images, starts PostgreSQL, runs schema migrations, starts the API and import worker, then serves the UI after the API is healthy. Open **http://localhost:8080** and enter `TRAINING_LENS_TOKEN` from `.env`. To run in the background, use `docker compose up -d`. Change the optional `STRAVA_PORT` setting if port 8080 is occupied.
+
+### Drop a Strava export
+
+Download your bulk export from Strava and put the **original ZIP, without unzipping it**, into the configured host inbox. For the default location:
+
+```sh
+cp /path/to/export.zip "$HOME/StravaLens/inbox/export.zip.partial"
+mv "$HOME/StravaLens/inbox/export.zip.partial" "$HOME/StravaLens/inbox/export.zip"
+```
+
+Using a temporary suffix and renaming after the copy finishes prevents an incomplete large file from being picked up. Files must end in lowercase `.zip` and be directly in the inbox; subfolders are not scanned. Later exports can be dropped into the same folder under different names. Leave ZIPs unchanged while importing.
+
+The worker discovers the file automatically. Open **Setup → Imports** to follow progress, then use the dashboards once the snapshot is ready. Large archives take several minutes. Existing dashboards stay visible during subsequent imports. Browser upload from Setup is also supported.
+
+Only the worker mounts your host inbox. API and worker share a Docker-managed staging volume; PostgreSQL uses its own persistent volume. `docker compose down` stops the stack without deleting those volumes or your original ZIPs. `docker compose up` starts it again. Use `docker compose up --build` after pulling application source changes so existing images are rebuilt.
+
+The web port binds to loopback. For access across machines, configure an authenticated TLS reverse proxy. Keep the application token private. This is a single-athlete application.
 
 Identical logical records reuse deterministic IDs. Versioned summaries and snapshot memberships are retained; dashboards use a selected ready snapshot instead of summing all export versions. A smaller replacement export therefore shows its own membership. No partial or failed import replaces the ready snapshot. Changes to parser configuration require a new import.
 
@@ -49,4 +83,8 @@ Frontend development proxies `/api` to port 8000. Use the same token for API and
 
 ## Troubleshooting
 
+If startup reports a missing bind source, create the configured host inbox and confirm Docker can access it. If files are not detected, check the `.zip` suffix and folder permissions. Run `docker compose ps` to check service health and `docker compose logs -f worker` to follow ingestion.
+
 Check `docker compose logs api worker migrate`, the Imports screen and `/api/health`. A failed migration must be fixed before startup. Unsupported telemetry files can be quarantined while valid activity summaries remain available; dashboard coverage exposes these gaps. Missing HR, unknown cadence conventions, unavailable incoming social interactions, VO2 max and HRV are displayed as unavailable rather than inferred.
+
+Container configuration follows Docker’s [startup dependency guidance](https://docs.docker.com/compose/how-tos/startup-order/) and [bind-mount behavior](https://docs.docker.com/engine/storage/bind-mounts/).

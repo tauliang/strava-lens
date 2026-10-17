@@ -55,5 +55,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -f deploy/Dockerfile.api .
-      - run: docker build -f deploy/Dockerfile.web .
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Start disposable Compose stack
+        env:
+          POSTGRES_PASSWORD: ci-compose-password
+          TRAINING_LENS_TOKEN: ci-compose-token
+          STRAVA_INBOX_DIR: /tmp/strava-lens-ci-inbox
+        run: |
+          mkdir -p "$STRAVA_INBOX_DIR"
+          docker compose -p strava-lens-ci up --build -d --wait --wait-timeout 180
+      - name: Verify watched-folder imports
+        env:
+          TRAINING_LENS_TOKEN: ci-compose-token
+        run: |
+          pip install .
+          python -m deploy.smoke_compose /tmp/strava-lens-ci-inbox
+      - name: Stop disposable stack
+        if: always()
+        env:
+          POSTGRES_PASSWORD: ci-compose-password
+          TRAINING_LENS_TOKEN: ci-compose-token
+          STRAVA_INBOX_DIR: /tmp/strava-lens-ci-inbox
+        run: docker compose -p strava-lens-ci down --volumes

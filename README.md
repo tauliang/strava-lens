@@ -6,14 +6,14 @@ Start with the [installation and operations guide](docs/operations.md), [archite
 
 ## Run the web app
 
-Copy `.env.example` to `.env`, generate the two secrets described there, and run:
+One time: copy `.env.example` to `.env`, set the two independent secrets described there, and create your external Strava inbox. Then start everything with one command:
 
 ```sh
-mkdir -p inbox
-docker compose up --build -d
+mkdir -p "$HOME/StravaLens/inbox"
+docker compose up
 ```
 
-Open http://localhost:8080, enter your configured token, and upload an export in Setup or drop a completed ZIP into `inbox`. Imports run in a separate durable worker. Overlapping exports retain versioned summaries while each dashboard counts only one selected ready snapshot.
+Open http://localhost:8080, enter your configured token, and upload an export in Setup or drop the original ZIP into **`$HOME/StravaLens/inbox`** on your computer. Set `STRAVA_INBOX_DIR` in `.env` to use another absolute folder, including an external disk. The folder is mounted read-only into the worker; your originals remain on the host. See the [operations guide](docs/operations.md#drop-a-strava-export) for safe copying, permissions and progress monitoring. Imports run in a separate durable worker. Overlapping exports retain versioned summaries while each dashboard counts only one selected ready snapshot.
 
 Overview, Training, Sport Performance, Gear and Sports, Geography, Activity Detail, Social, Vitals, Data Health and Setup share data-driven metric dropdowns, unit-aware legends, historical filters and coverage indicators. Unavailable source measurements remain unavailable; the app does not invent VO₂ max, HRV or historic follower dates.
 

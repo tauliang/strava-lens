@@ -36,3 +36,9 @@ In progress. Do not interpret this ledger as a parity or deployment certificatio
 ## Remaining operational limitations
 
 Polling is used for import progress. Automatic retention/garbage collection and multi-user hosting remain deferred. The chart bundle produces a nonfatal 500 KB warning (about 176 KB gzip). CI includes PostgreSQL tests, schema-drift checks, frontend build and container builds; hosted results must be checked on the PR.
+
+## Docker deployment follow-up
+
+Compose now supports a configurable external read-only host inbox (`STRAVA_INBOX_DIR`), defaulting to `$HOME/StravaLens/inbox`. Only the worker mounts it; absent folders fail startup rather than silently creating a different directory. Database/migration/API health dependencies, restart policies and an optional host port are configured. One-time secrets/folder setup is documented; normal startup is `docker compose up`.
+
+Both images built and the full stack started successfully in an isolated project on the running Colima Docker context. The container smoke test passed external folder discovery, byte-identical archive skipping and unique totals for overlapping exports. The original current Docker context was stopped; no global context was changed. Temporary-folder sharing and macOS protected-folder limitations were encountered and documented. CI now runs this disposable Compose smoke test in addition to building the images.
