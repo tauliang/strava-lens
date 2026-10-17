@@ -172,3 +172,35 @@ class AnalyticsTests(unittest.TestCase):
         self.assertEqual(row["cadence"], 180)
         self.assertEqual(row["speed_unit"], "MPH")
         self.assertEqual(row["speed_coverage_pct"], 100)
+
+    def test_activity_tables_project_product_columns_and_units(self):
+        a = activity(
+            "a", athlete_id="private", stream_revision_id="internal", average_hr=140
+        )
+        out = dashboard("overview", [a], {"units": "imperial"})
+        row = out["panels"][2]["rows"][0]
+        self.assertEqual(row["activity_id"], "a")
+        self.assertEqual(row["distance"], 0.62)
+        self.assertEqual(row["distance_unit"], "miles")
+        self.assertEqual(row["moving_minutes"], 5)
+        for field in (
+            "event_id",
+            "kind",
+            "athlete_id",
+            "stream_revision_id",
+            "distance_m",
+        ):
+            self.assertNotIn(field, row)
+
+    def test_network_history_ignores_relationship_rows_before_archive_dedup(self):
+        common = dict(kind="social", archive_hash="same", timestamp=1704067200)
+        relationship = dict(common, event_id="r", social_type="relationship")
+        network = dict(
+            common,
+            event_id="n",
+            social_type="network",
+            followers=5,
+            followers_available=1,
+        )
+        out = dashboard("social", [relationship, network])
+        self.assertEqual(out["panels"][0]["series"][0]["data"][0]["y"], 5)

@@ -434,6 +434,7 @@ def chart(records, activities, associated, key, filters, panel_id):
     if source == "social":
         rows = [r for r in records if r.get("kind") == "social"]
         if key in ("followers", "following", "pending", "mutual"):
+            rows = [r for r in rows if r.get("social_type") == "network"]
             unique = {}
             for row in sorted(
                 rows, key=lambda r: r.get("import_epoch", r.get("timestamp", 0))
@@ -827,6 +828,91 @@ def table_rows(pid, base, activities, associated, records, filters):
     return []
 
 
+def present_rows(rows, filters, panel_id):
+    """Project product fields; persistence identifiers never become table columns."""
+    result = []
+    internal = {
+        "kind",
+        "athlete_id",
+        "event_id",
+        "stream_revision_id",
+        "archive_hash",
+        "parser_version",
+        "schema_version",
+        "calculation_version",
+        "import_epoch",
+        "timestamp",
+        "snapshot_id",
+        "source_hash",
+        "source_file",
+        "csv_hash",
+        "stream_hash",
+        "comparison_month_day",
+        "local_month",
+        "local_year",
+        "local_week_start",
+        "exact_gps",
+        "duration_valid",
+        "distance_valid",
+        "pace_valid",
+        "sample_count",
+        "raw_distance",
+        "raw_duration",
+        "raw_relative_effort",
+        "sport_raw",
+        "source_member",
+    }
+    for row in rows:
+        if row.get("kind") == "activity":
+            fields = (
+                "activity_id",
+                "local_date",
+                "activity_name",
+                "sport",
+                "gear",
+                "average_hr",
+                "max_hr",
+                "average_cadence",
+                "relative_effort",
+                "stream_status",
+                "quality_flags",
+                "sets",
+                "reps",
+            )
+            item = {key: row[key] for key in fields if key in row}
+            if number(row, "distance_m") is not None:
+                meta = metadata("distance", filters.get("units", "metric"))
+                item["distance"] = round(row["distance_m"] * meta["factor"], 2)
+                item["distance_unit"] = meta["unit"]
+            if number(row, "moving_time_s") is not None:
+                item["moving_minutes"] = round(row["moving_time_s"] / 60, 2)
+            if number(row, "elevation_gain_m") is not None:
+                meta = metadata("elevation", filters.get("units", "metric"))
+                item["elevation_gain"] = round(
+                    row["elevation_gain_m"] * meta["factor"], 2
+                )
+                item["elevation_unit"] = meta["unit"]
+            if row.get("pace_valid") == 1:
+                item["moving_pace"] = aggregate([row], "pace", filters)[0]
+                item["pace_unit"] = metadata("pace", filters.get("units", "metric"))[
+                    "unit"
+                ]
+        else:
+            item = {key: value for key, value in row.items() if key not in internal}
+            if panel_id in ("readiness", "configuration", "diagnostics"):
+                for key in (
+                    "snapshot_id",
+                    "parser_version",
+                    "timezone",
+                    "import_epoch",
+                    "exact_gps",
+                ):
+                    if key in row:
+                        item[key] = row[key]
+        result.append(item)
+    return result
+
+
 def dashboard(dashboard_id, records, filters=None):
     """Build one dashboard. Unknown dashboard/metric IDs raise ValueError."""
     if dashboard_id not in DASHBOARDS:
@@ -899,6 +985,7 @@ def dashboard(dashboard_id, records, filters=None):
             panel["rows"] = table_rows(
                 pid, base, activities, associated, records, filters
             )
+        panel["rows"] = present_rows(panel["rows"], filters, pid)
         panels.append(panel)
     return {
         "id": dashboard_id,
