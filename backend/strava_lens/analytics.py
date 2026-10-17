@@ -493,13 +493,24 @@ def chart(records, activities, associated, key, filters, panel_id):
         for metric in keys:
             value, valid = aggregate(items, metric, filters)
             meta = metadata(metric, filters.get("units", "metric"))
-            series[f"{label} · {meta['label']} ({meta['unit']})"].append(
-                {"x": x, "y": value}
-            )
+            name = f"{label} · {meta['label']} ({meta['unit']})"
+            points = series[name]
+            if (
+                panel_id == "telemetry"
+                and points
+                and any(r.get("gap_before") or r.get("segment_start") for r in items)
+            ):
+                previous_x = float(points[-1]["x"])
+                current_x = float(x)
+                if current_x > previous_x:
+                    # A distinct midpoint preserves both real endpoints while making
+                    # connectNulls=False break the line across pauses/segment gaps.
+                    points.append({"x": str((previous_x + current_x) / 2), "y": None})
+            points.append({"x": x, "y": value})
             valid_count += valid
             total_count += len(items)
     # Retain visible annual gaps instead of joining across missing years.
-    if grain == "year" and groups:
+    if grain == "year" and groups and panel_id != "telemetry":
         years = [int(x) for x, _ in groups if x.isdigit() and len(x) == 4]
         if years:
             for name, data in series.items():

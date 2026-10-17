@@ -204,3 +204,45 @@ class AnalyticsTests(unittest.TestCase):
         )
         out = dashboard("social", [relationship, network])
         self.assertEqual(out["panels"][0]["series"][0]["data"][0]["y"], 5)
+
+    def test_telemetry_breaks_lines_at_time_and_segment_boundaries(self):
+        a = activity("a", stream_revision_id="r")
+        samples = [
+            dict(
+                kind="sample",
+                event_id="s1",
+                stream_revision_id="r",
+                elapsed_s=0,
+                hr=100,
+            ),
+            dict(
+                kind="sample",
+                event_id="s2",
+                stream_revision_id="r",
+                elapsed_s=60,
+                hr=150,
+                gap_before=True,
+            ),
+            dict(
+                kind="sample",
+                event_id="s3",
+                stream_revision_id="r",
+                elapsed_s=61,
+                hr=140,
+            ),
+            dict(
+                kind="sample",
+                event_id="s4",
+                stream_revision_id="r",
+                elapsed_s=90,
+                hr=130,
+                segment_start=True,
+            ),
+        ]
+        out = dashboard(
+            "activity_detail", [a, *samples], {"activity_id": "a", "grain": "year"}
+        )
+        data = out["panels"][1]["series"][0]["data"]
+        self.assertEqual([p["y"] for p in data], [100, None, 150, 140, None, 130])
+        self.assertEqual([float(p["x"]) for p in data], [0, 30, 60, 61, 75.5, 90])
+        self.assertEqual(out["panels"][1]["coverage"], {"valid": 4, "total": 4})
