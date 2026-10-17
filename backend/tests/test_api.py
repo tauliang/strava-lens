@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from strava_lens.app import app
 from strava_lens.db import get_session
-from strava_lens.models import Base, Snapshot
+from strava_lens.models import Base, Snapshot, SnapshotRecord, Record
 
 
 class ApiTests(unittest.TestCase):
@@ -70,3 +70,32 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         for key in ("overview", "training", "activity_detail", "social", "vitals"):
             self.assertEqual(self.client.get("/api/dashboards/" + key).status_code, 200)
+
+    def test_bounded_telemetry_preserves_extrema_and_masks_coordinates(self):
+        with self.factory.begin() as session:
+            session.add(Snapshot(id="ready", status="ready", created_at=1, manifest={}))
+            session.flush()
+            for i in range(200):
+                payload = {
+                    "kind": "sample",
+                    "event_id": str(i),
+                    "activity_id": "a",
+                    "timestamp": i,
+                    "hr": 200 if i == 53 else 100,
+                    "speed_mps": 1,
+                    "latitude": 42,
+                    "longitude": -71,
+                }
+                session.add(
+                    Record(
+                        event_id=str(i), kind="sample", activity_id="a", payload=payload
+                    )
+                )
+                session.flush()
+                session.add(SnapshotRecord(snapshot_id="ready", event_id=str(i)))
+        rows = self.client.get(
+            "/api/activities/a/streams?snapshot_id=ready&limit=20"
+        ).json()
+        self.assertLessEqual(len(rows), 20)
+        self.assertIn(200, [r["hr"] for r in rows])
+        self.assertTrue(all("latitude" not in r for r in rows))

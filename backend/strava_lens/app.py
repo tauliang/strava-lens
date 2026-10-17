@@ -239,7 +239,7 @@ def bounded_samples(session, snapshot_id, activity_id, limit):
     count = session.scalar(select(func.count()).select_from(query.subquery()))
     if not count:
         return []
-    metrics = ("speed_mps", "heart_rate_bpm", "cadence_rpm", "power_w", "altitude_m")
+    metrics = ("speed_mps", "hr", "cadence", "watts", "altitude_m")
     # At most first/last + 3 representatives per metric + a time-gap marker.
     width = max(1, (count + max(1, limit // 20) - 1) // max(1, limit // 20))
     result, bucket = [], []
@@ -247,6 +247,16 @@ def bounded_samples(session, snapshot_id, activity_id, limit):
 
     def flush():
         chosen = {0, len(bucket) - 1}
+        gap = next(
+            (
+                i
+                for i, row in enumerate(bucket)
+                if row.get("gap_before") or row.get("segment_start")
+            ),
+            None,
+        )
+        if gap is not None:
+            chosen.add(gap)
         for metric in metrics:
             valid = [
                 (i, row[metric])
