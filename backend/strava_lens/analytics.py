@@ -199,7 +199,7 @@ def dashboard_registry(records=None):
                         "title": label,
                         "type": kind,
                         "metrics": [metadata(m) for m in metrics],
-                        "default_metric": metrics[0] if metrics else None,
+                        "default_metric": "auto" if metrics else None,
                         "modes": MODES.get(pid, []),
                     }
                     for pid, label, kind, metrics in panels
@@ -961,7 +961,44 @@ def dashboard(dashboard_id, records, filters=None):
             "coverage": {},
         }
         if allowed:
-            metric = filters.get("metric_" + pid, filters.get("metric", allowed[0]))
+
+            def is_available(metric_id):
+                source = METRICS[metric_id]["source_kind"]
+                candidates = (
+                    activities
+                    if source == "activity"
+                    else (
+                        records
+                        if metric_id in ("followers", "following", "pending", "mutual")
+                        else base
+                        if source == "social"
+                        else associated
+                    )
+                )
+                keys = (
+                    ("avg_hr", "peak_hr")
+                    if metric_id == "hr_comparison"
+                    else (metric_id,)
+                )
+                return any(
+                    eligible(row, key, filters)
+                    for row in candidates
+                    if row.get("kind") == source
+                    for key in keys
+                )
+
+            panel["metrics"] = [
+                {
+                    **metadata(m, filters.get("units", "metric")),
+                    "available": is_available(m),
+                }
+                for m in allowed
+            ]
+            metric = filters.get("metric_" + pid, filters.get("metric", "auto"))
+            if metric == "auto":
+                metric = next(
+                    (m["key"] for m in panel["metrics"] if m["available"]), allowed[0]
+                )
             if metric not in allowed:
                 raise ValueError("unsupported_metric")
             meta = metadata(metric, filters.get("units", "metric"))
@@ -976,24 +1013,11 @@ def dashboard(dashboard_id, records, filters=None):
             )
             if kind == "single":
                 panel["value"] = aggregate(activities, metric, filters)[0]
-            panel["metrics"] = [
-                {
-                    **metadata(m, filters.get("units", "metric")),
-                    "available": any(
-                        eligible(r, m, filters)
-                        for r in (
-                            activities
-                            if METRICS[m]["source_kind"] == "activity"
-                            else base
-                            if METRICS[m]["source_kind"] == "social"
-                            else associated
-                        )
-                        if r.get("kind") == METRICS[m]["source_kind"]
-                    ),
-                }
-                for m in allowed
-            ]
-            if not panel["series"]:
+            if not any(
+                point["y"] is not None
+                for series in panel["series"]
+                for point in series["data"]
+            ):
                 panel["message"] = (
                     "No eligible observations for the selected metric and filters."
                 )

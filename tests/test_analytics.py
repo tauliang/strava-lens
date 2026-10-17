@@ -261,3 +261,36 @@ class AnalyticsTests(unittest.TestCase):
                 {"metric_performance": "speed", **sport_filter},
             )
             self.assertEqual(len(out["panels"][0]["series"]), 2)
+
+    def test_automatic_metric_selects_first_eligible_from_filtered_sources(self):
+        a = activity("a")
+        for filters in ({}, {"metric_load": "auto"}):
+            out = dashboard("training", [a], filters)
+            self.assertEqual(out["panels"][0]["metric"], "hours")
+        out = dashboard("training", [a], {"metric_load": "effort"})
+        self.assertEqual(out["panels"][0]["metric"], "effort")
+        self.assertIn("message", out["panels"][0])
+        self.assertFalse(out["panels"][0]["metrics"][0]["available"])
+        self.assertEqual(
+            dashboard_registry()["dashboards"][0]["panels"][0]["default_metric"], "auto"
+        )
+
+    def test_automatic_telemetry_zones_and_empty_filters(self):
+        a = activity("a", stream_revision_id="r")
+        sample = dict(
+            kind="sample",
+            event_id="s",
+            stream_revision_id="r",
+            elapsed_s=0,
+            speed_mps=2,
+        )
+        out = dashboard("activity_detail", [a, sample], {"activity_id": "a"})
+        self.assertEqual(out["panels"][1]["metric"], "sample_speed")
+        out = dashboard("training", [a], {"sport": "Ride"})
+        self.assertIn("message", out["panels"][0])
+        zone = dict(
+            kind="zone", event_id="z", stream_revision_id="r", zone=1, seconds=60
+        )
+        a.pop("moving_time_s")
+        out = dashboard("training", [a, zone], {"metric_load": "zones"})
+        self.assertEqual(out["panels"][0]["series"][0]["data"][0]["y"], 0.02)
