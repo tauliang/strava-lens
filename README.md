@@ -6,6 +6,14 @@ The app runs on your own machine and reads Strava bulk exports. Its ten dashboar
 
 The [installation and operations guide](docs/operations.md) covers getting it running. If you want to get under the hood, read the [architecture](docs/architecture.md), [dashboard parity mapping](docs/dashboard-parity.md) and [migration plan](docs/migration-plan.md).
 
+## Watch the demo
+
+A 30-second tour of Strava Lens, with voice narration.
+
+[![Watch the Strava Lens walkthrough](docs/media/walkthrough-preview.jpg)](docs/media/strava-lens-walkthrough-warm-voice.mp4)
+
+[Watch or download the video](docs/media/strava-lens-walkthrough-warm-voice.mp4).
+
 ## Run the web app
 
 Set up your inbox once: copy `.env.example` to `.env` and set the two independent secrets described there. Create the external Strava inbox and start the app:
