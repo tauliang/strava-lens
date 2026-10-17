@@ -151,10 +151,14 @@ export function Panel({
                 setFilter(`metric_${definition.id}`, event.target.value)
               }
             >
-              {definition.metrics.map((metric) => (
+              {(data && "metrics" in data
+                ? (data.metrics as PanelDefinition["metrics"])
+                : definition.metrics
+              ).map((metric) => (
                 <option key={metricKey(metric)} value={metricKey(metric)}>
                   {metric.label}
                   {metric.unit ? ` · ${metric.unit}` : ""}
+                  {metric.available === false ? " · No observations" : ""}
                 </option>
               ))}
             </select>
@@ -315,6 +319,22 @@ function Settings() {
       setSaved(false);
     }
   }
+  let exactGps = false;
+  try {
+    exactGps = JSON.parse(text).exact_gps === true;
+  } catch {
+    /* JSON editor may contain unfinished edits. */
+  }
+  function setExactGps(value: boolean) {
+    try {
+      const next = JSON.parse(text);
+      next.exact_gps = value;
+      setText(JSON.stringify(next, null, 2));
+      setSaved(false);
+    } catch (error) {
+      setError(error);
+    }
+  }
   return (
     <article className="panel">
       <h2>Import settings, zones and goals</h2>
@@ -324,6 +344,14 @@ function Settings() {
         disabled unless you explicitly want to retain it.
       </p>
       {config.error && <ErrorNotice error={config.error} />}
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={exactGps}
+          onChange={(event) => setExactGps(event.target.checked)}
+        />{" "}
+        Retain exact GPS coordinates in future imports (explicit opt-in)
+      </label>
       <label>
         Configuration JSON
         <textarea

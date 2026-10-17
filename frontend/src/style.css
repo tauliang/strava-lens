@@ -556,3 +556,14 @@ footer {
   font-size: 10px;
   margin-left: 10px;
 }
+.checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 18px 0;
+  line-height: 1.6;
+}
+.checkbox-label input {
+  width: 18px;
+  height: 18px;
+}
