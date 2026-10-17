@@ -466,13 +466,18 @@ def chart(records, activities, associated, key, filters, panel_id):
                 if panel_id == "telemetry"
                 else bucket(parent, grain)
             )
-            split = filters.get("split", "sport")
+            split = filters.get("split", "none")
             label = (
                 str(parent.get(split, "Selected activities"))
                 if split in ("sport", "gear")
                 else "Selected activities"
             )
-            if key in ("pace", "speed") and filters.get("sport", "All") == "All":
+            if key in ("pace", "speed") and filters.get("sport", "All") in (
+                "All",
+                "all",
+                "",
+                None,
+            ):
                 label = str(parent.get("sport", "Unspecified"))
             if key == "zones":
                 label = "Zone " + str(row.get("zone", "?"))

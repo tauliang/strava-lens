@@ -56,7 +56,7 @@ class AnalyticsTests(unittest.TestCase):
         a = activity("a")
         b = activity("b")
         b.update(local_date="2026-01-01", sport="AlpineSki")
-        result = dashboard("overview", [a, b], {"grain": "year"})
+        result = dashboard("overview", [a, b], {"grain": "year", "split": "sport"})
         series = result["panels"][1]["series"]
         self.assertEqual(len(series), 2)
         self.assertIsNone(series[0]["data"][1]["y"])
@@ -246,3 +246,18 @@ class AnalyticsTests(unittest.TestCase):
         self.assertEqual([p["y"] for p in data], [100, None, 150, 140, None, 130])
         self.assertEqual([float(p["x"]) for p in data], [0, 30, 60, 61, 75.5, 90])
         self.assertEqual(out["panels"][1]["coverage"], {"valid": 4, "total": 4})
+
+    def test_combined_default_matches_selector_but_speed_keeps_sports_separate(self):
+        a = activity("a")
+        b = activity("b")
+        b.update(sport="AlpineSki")
+        overview = dashboard("overview", [a, b])
+        self.assertEqual(len(overview["panels"][1]["series"]), 1)
+        self.assertEqual(overview["panels"][1]["series"][0]["data"][0]["y"], 2)
+        for sport_filter in ({}, {"sport": ""}, {"sport": "All"}):
+            out = dashboard(
+                "run_performance",
+                [a, b],
+                {"metric_performance": "speed", **sport_filter},
+            )
+            self.assertEqual(len(out["panels"][0]["series"]), 2)
