@@ -4,6 +4,8 @@ permissions:
   contents: read
 jobs:
   parser:
+    env:
+      PYTHONPATH: backend
     runs-on: ubuntu-latest
     strategy:
       matrix:

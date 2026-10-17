@@ -1,6 +1,21 @@
 # Strava Lens
 
-A standalone Python parser extracted from Training Lens. This first milestone reads Strava bulk-export ZIPs without Splunk, a database, an API server, or filesystem ingestion state. The [migration plan](docs/migration-plan.md) describes the later Python API and TypeScript web application.
+A self-hosted training analytics application for Strava bulk exports, with ten dashboards and 28 parameterized panels migrated from Training Lens for Splunk. FastAPI and PostgreSQL provide durable imports and analytics; React and TypeScript provide the reactive dashboard UI. The parser remains an independently installable Python package.
+
+Start with the [installation and operations guide](docs/operations.md), [architecture](docs/architecture.md), [dashboard parity mapping](docs/dashboard-parity.md) and [migration plan](docs/migration-plan.md).
+
+## Run the web app
+
+Copy `.env.example` to `.env`, generate the two secrets described there, and run:
+
+```sh
+mkdir -p inbox
+docker compose up --build -d
+```
+
+Open http://localhost:8080, enter your configured token, and upload an export in Setup or drop a completed ZIP into `inbox`. Imports run in a separate durable worker. Overlapping exports retain versioned summaries while each dashboard counts only one selected ready snapshot.
+
+Overview, Training, Sport Performance, Gear and Sports, Geography, Activity Detail, Social, Vitals, Data Health and Setup share data-driven metric dropdowns, unit-aware legends, historical filters and coverage indicators. Unavailable source measurements remain unavailable; the app does not invent VO₂ max, HRV or historic follower dates.
 
 ## Install
 

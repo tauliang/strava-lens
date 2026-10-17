@@ -9,3 +9,10 @@ dist/
 *.fit
 *.gpx
 *.ndjson
+node_modules/
+.env
+inbox/
+.coverage
+.pytest_cache/
+*.db
+.superpowers/

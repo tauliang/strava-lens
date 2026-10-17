@@ -1,0 +1,52 @@
+name: strava-lens
+x-app: &app
+  build:
+    context: .
+    dockerfile: deploy/Dockerfile.api
+  environment: &env
+    DATABASE_URL: postgresql+psycopg://lens:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/lens
+    TRAINING_LENS_TOKEN: ${TRAINING_LENS_TOKEN:?Set TRAINING_LENS_TOKEN in .env}
+    DATA_DIR: /data
+  volumes:
+    - imports:/data
+    - ./inbox:/data/inbox:ro
+  depends_on:
+    db:
+      condition: service_healthy
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: lens
+      POSTGRES_USER: lens
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U lens -d lens']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    <<: *app
+    command: [alembic, -c, backend/alembic.ini, upgrade, head]
+  api:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    <<: *app
+    command: [python, -m, strava_lens.worker]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    ports: ['127.0.0.1:8080:8080']
+    depends_on: [api]
+volumes:
+  postgres:
+  imports:
