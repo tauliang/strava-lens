@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "strava-lens-parser"
+version = "0.1.0"
+description = "Standalone, privacy-aware parsing of Strava bulk export archives"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "THIRD_PARTY_LICENSES"]
+authors = [{name = "Tau Liang"}]
+dependencies = ["fitdecode==0.11.0"]
+
+[project.optional-dependencies]
+dev = ["build>=1.2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

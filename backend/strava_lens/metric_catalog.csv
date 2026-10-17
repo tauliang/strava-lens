@@ -1,0 +1,31 @@
+metric_id,group_id,label,source_kind,source_field,aggregation_key,dimension,canonical_unit,metric_unit,imperial_unit,metric_factor,imperial_factor,precision,time_basis,prerequisite,sort_order
+activities,activity,Activities,activity,activity_id,count,sport,activities,activities,activities,1,1,2,activity_date,,0
+hours,activity,Moving time,activity,moving_time_s,sum,sport,hours,hours,hours,0.0002777777777777778,0.0002777777777777778,2,activity_date,,1
+distance,activity,Distance,activity,distance_m,sum,sport,km,km,miles,0.001,0.0006213711922373339,2,activity_date,,2
+elevation,activity,Elevation gain,activity,elevation_gain_m,sum,sport,m,m,ft,1,3.280839895,2,activity_date,,3
+effort,activity,Imported Relative Effort,activity,relative_effort,sum,sport,effort,effort,effort,1,1,2,activity_date,,4
+active_days,activity,Active days,activity,local_date,distinct,sport,days,days,days,1,1,2,activity_date,,5
+pace,activity,Moving pace,activity,distance_m,pace,sport,min/km,min/km,min/mile,16.666666666666668,26.822400000000002,2,activity_date,,6
+speed,activity,Moving speed,activity,distance_m,speed,sport,km/h,km/h,MPH,3.6,2.2369362920544,2,activity_date,,7
+cadence,activity,Running cadence,activity,average_cadence,weighted,sport,steps/min,steps/min,steps/min,1,1,2,activity_date,confirmed_cadence,8
+avg_hr,activity,Average exercise HR,activity,average_hr,weighted,sport,bpm,bpm,bpm,1,1,2,activity_date,,9
+peak_hr,activity,Peak exercise HR,activity,max_hr,max,sport,bpm,bpm,bpm,1,1,2,activity_date,,10
+weight,activity,Recorded athlete weight,activity,athlete_weight,median,sport,export units,export units,export units,1,1,2,activity_date,,11
+flagged,activity,Flagged activities,activity,flagged,sum,sport,activities,activities,activities,1,1,2,activity_date,,12
+hr_coverage,activity,HR coverage,activity,average_hr,coverage,sport,%,%,%,100,100,2,activity_date,,13
+effort_coverage,activity,Effort coverage,activity,relative_effort,coverage,sport,%,%,%,100,100,2,activity_date,,14
+stream_coverage,activity,Decoded stream coverage,activity,stream_status,coverage,sport,%,%,%,100,100,2,activity_date,,15
+zones,zone,Heart-rate zones,zone,seconds,sum,sport,hours,hours,hours,0.0002777777777777778,0.0002777777777777778,2,activity_date,,16
+sample_hr,sample,Heart rate,sample,hr,mean,sport,bpm,bpm,bpm,1,1,2,activity_date,,17
+sample_pace,sample,Pace,sample,pace_min_km,mean,sport,min/km,min/km,min/mile,1,1.609344,2,activity_date,,18
+sample_speed,sample,Speed,sample,speed_mps,mean,sport,km/h,km/h,MPH,3.6,2.2369362920544,2,activity_date,,19
+sample_altitude,sample,Elevation,sample,altitude_m,mean,sport,m,m,ft,1,3.280839895,2,activity_date,,20
+sample_cadence,sample,Device cadence,sample,cadence,mean,sport,device units,device units,device units,1,1,2,activity_date,,21
+sample_power,sample,Measured power,sample,watts,mean,sport,W,W,W,1,1,2,activity_date,,22
+followers,network,Accepted followers,social,followers,max,sport,people,people,people,1,1,2,activity_date,,23
+following,network,Following,social,following,max,sport,people,people,people,1,1,2,activity_date,,24
+pending,network,Pending follower requests,social,pending_followers,max,sport,people,people,people,1,1,2,activity_date,,25
+mutual,network,Mutual connections,social,mutual,max,sport,people,people,people,1,1,2,activity_date,,26
+given,engagement,Comments and kudos given,social,interaction_type,count,sport,interactions,interactions,interactions,1,1,2,activity_date,,27
+received,engagement,Comments and kudos received from current followers,social,interaction_type,count,sport,interactions,interactions,interactions,1,1,2,activity_date,received_available,28
+hr_comparison,activity,Average + peak exercise HR,activity,average_hr,weighted,sport,bpm,bpm,bpm,1,1,2,activity_date,,29

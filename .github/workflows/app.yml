@@ -1,0 +1,81 @@
+name: Standalone app
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: lens
+          POSTGRES_PASSWORD: lens
+          POSTGRES_DB: lens
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U lens'
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      PYTHONPATH: backend
+      DATABASE_URL: postgresql+psycopg://lens:lens@localhost:5432/lens
+      POSTGRES_TEST_URL: postgresql+psycopg://lens:lens@localhost:5432/lens
+      TRAINING_LENS_TOKEN: ci-test-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -e '.[dev]' -r backend/requirements.txt ruff
+      - run: alembic -c backend/alembic.ini upgrade head
+      - run: python -m unittest discover -s backend/tests -v
+      - run: ruff check backend --select E4,E7,E9,F
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e . -r backend/requirements.txt
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run generate:api && git diff --exit-code -- openapi.json src/api-schema.ts
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Start disposable Compose stack
+        env:
+          POSTGRES_PASSWORD: ci-compose-password
+          TRAINING_LENS_TOKEN: ci-compose-token
+          STRAVA_INBOX_DIR: /tmp/strava-lens-ci-inbox
+        run: |
+          mkdir -p "$STRAVA_INBOX_DIR"
+          docker compose -p strava-lens-ci up --build -d --wait --wait-timeout 180
+      - name: Verify watched-folder imports
+        env:
+          TRAINING_LENS_TOKEN: ci-compose-token
+        run: |
+          pip install .
+          python -m deploy.smoke_compose /tmp/strava-lens-ci-inbox
+      - name: Stop disposable stack
+        if: always()
+        env:
+          POSTGRES_PASSWORD: ci-compose-password
+          TRAINING_LENS_TOKEN: ci-compose-token
+          STRAVA_INBOX_DIR: /tmp/strava-lens-ci-inbox
+        run: docker compose -p strava-lens-ci down --volumes

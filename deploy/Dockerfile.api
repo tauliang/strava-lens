@@ -1,0 +1,12 @@
+FROM python:3.13-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/backend
+WORKDIR /app
+COPY pyproject.toml README.md LICENSE THIRD_PARTY_LICENSES ./
+COPY src ./src
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir . -r backend/requirements.txt
+COPY backend ./backend
+RUN useradd --uid 10001 --create-home lens && mkdir -p /data/inbox && chown -R lens:lens /data
+USER lens
+EXPOSE 8000
+CMD ["uvicorn", "strava_lens.app:app", "--host", "0.0.0.0", "--port", "8000"]
