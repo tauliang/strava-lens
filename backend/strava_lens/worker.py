@@ -23,6 +23,7 @@ def run():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     stable = {}
+    observed = {}
     while running:
         inbox = Path(
             os.getenv("INBOX_DIR", str(Path(os.getenv("DATA_DIR", "./data")) / "inbox"))
@@ -33,6 +34,8 @@ def run():
                 signature = (stat.st_size, stat.st_mtime_ns)
                 if stable.get(path) != signature:
                     stable[path] = signature
+                    continue
+                if observed.get(path) == signature:
                     continue
                 import hashlib
 
@@ -47,6 +50,7 @@ def run():
                     if not exists:
                         with path.open("rb") as stream:
                             enqueue(stream, session)
+                observed[path] = signature
             except OSError:
                 log.warning("Watch file unavailable")
         with SessionLocal() as session:
