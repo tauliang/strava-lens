@@ -17,6 +17,30 @@ Open http://localhost:8080, enter your configured token, and upload an export in
 
 Overview, Training, Sport Performance, Gear and Sports, Geography, Activity Detail, Social, Vitals, Data Health and Setup share data-driven metric dropdowns, unit-aware legends, historical filters and coverage indicators. Unavailable source measurements remain unavailable; the app does not invent VO₂ max, HRV or historic follower dates.
 
+## Screenshots
+
+Live app screens using synthetic demo data: 240 activities across five sports, 2022–2026.
+
+**Training overview** — See activity volume and yearly trends by sport.
+
+![Training overview with yearly activity counts by sport](docs/screenshots/overview.jpg)
+
+**Sport performance** — Compare historical speed by sport and recorded running best efforts.
+
+![Sport performance with yearly speed in MPH and running best efforts](docs/screenshots/sport-performance.jpg)
+
+**Vitals** — Follow exercise heart-rate trends and time in configured HR zones.
+
+![Vitals with average and peak exercise heart rate and heart-rate zones](docs/screenshots/vitals.jpg)
+
+**Gear and sports** — Track sport mileage and equipment replacement thresholds.
+
+![Gear and sports with distance trends and configured equipment thresholds](docs/screenshots/gear-sports.jpg)
+
+**Activity detail** — Inspect a workout’s heart-rate trace and kilometre splits.
+
+![Activity detail with heart-rate telemetry and running splits](docs/screenshots/activity-detail.jpg)
+
 ## Install
 
 Python 3.10 or newer:
