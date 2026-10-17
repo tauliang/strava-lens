@@ -41,7 +41,10 @@ class Configuration(BaseModel):
     @field_validator("timezone")
     @classmethod
     def valid_timezone(cls, value):
-        ZoneInfo(value)
+        try:
+            ZoneInfo(value)
+        except (KeyError, ValueError) as error:
+            raise ValueError("Unknown IANA timezone") from error
         return value
 
 

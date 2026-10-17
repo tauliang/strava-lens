@@ -8,7 +8,7 @@ import threading
 import uuid
 from collections import Counter
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import or_, select, update, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from strava_lens_parser import iter_export
@@ -213,20 +213,19 @@ def _process(job_id, owner, factory):
                 if not fenced.rowcount:
                     raise ValueError("lease_lost")
                 for member in members:
-                    actual = final.scalars(
-                        select(Record.payload)
+                    actual_count = final.scalar(
+                        select(func.count())
+                        .select_from(Record)
                         .join(
                             SnapshotRecord, Record.event_id == SnapshotRecord.event_id
                         )
                         .where(
                             SnapshotRecord.snapshot_id == sid,
                             Record.activity_id == member["activity_id"],
+                            Record.kind.not_in(("membership", "activity")),
+                            Record.payload["stream_revision_id"].as_string()
+                            == member["stream_revision_id"],
                         )
-                    ).all()
-                    actual_count = sum(
-                        r.get("stream_revision_id") == member["stream_revision_id"]
-                        and r["kind"] not in ("membership", "activity")
-                        for r in actual
                     )
                     if actual_count != member["expected_records"]:
                         raise ValueError("stream_count_mismatch")
