@@ -12,6 +12,9 @@ import {
   request,
   tableValue,
   updateFilter,
+  type Configuration,
+  type ImportJob,
+  type Snapshot,
   type Dashboard,
   type DashboardData,
   type PanelData,
@@ -142,15 +145,12 @@ export function Panel({
           <label className="metric-select">
             <span className="sr-only">{definition.title} metric</span>
             <select
-              value={
-                params.get(`metric_${definition.id}`) ??
-                definition.default_metric ??
-                metricKey(definition.metrics[0])
-              }
+              value={params.get(`metric_${definition.id}`) ?? "auto"}
               onChange={(event) =>
                 setFilter(`metric_${definition.id}`, event.target.value)
               }
             >
+              <option value="auto">Automatic · first available</option>
               {(data && "metrics" in data
                 ? (data.metrics as PanelDefinition["metrics"])
                 : definition.metrics
@@ -216,7 +216,7 @@ function Imports() {
   const [notice, setNotice] = useState("");
   const imports = useQuery({
     queryKey: ["imports"],
-    queryFn: () => request<unknown>("/imports"),
+    queryFn: () => request<ImportJob[]>("/imports"),
     refetchInterval: 3000,
   });
   async function upload(file?: File) {
@@ -241,12 +241,7 @@ function Imports() {
     void client.invalidateQueries({ queryKey: ["dashboard"] });
     void client.invalidateQueries({ queryKey: ["snapshots"] });
   }, [imports.dataUpdatedAt, client]);
-  const raw = imports.data;
-  const rows = Array.isArray(raw)
-    ? raw
-    : raw && typeof raw === "object"
-      ? ((raw as { imports?: unknown[] }).imports ?? [])
-      : [];
+  const rows = imports.data ?? [];
   return (
     <>
       <section
@@ -285,12 +280,28 @@ function Imports() {
       <article className="panel">
         <h2>Import history</h2>
         {rows.length ? (
-          <DataTable rows={rows as Record<string, unknown>[]} />
+          <DataTable rows={rows} />
         ) : (
           <p className="muted">
             No imports yet. Upload your first export to populate the dashboards.
           </p>
         )}
+        {(rows as { id: string; status: string }[])
+          .filter((row) => row.status === "failed")
+          .map((row) => (
+            <button
+              key={row.id}
+              onClick={() => {
+                void request(`/imports/${encodeURIComponent(row.id)}/retry`, {
+                  method: "POST",
+                })
+                  .then(() => client.invalidateQueries())
+                  .catch(setError);
+              }}
+            >
+              Retry import {row.id.slice(0, 8)}
+            </button>
+          ))}
       </article>
     </>
   );
@@ -298,7 +309,7 @@ function Imports() {
 function Settings() {
   const config = useQuery({
     queryKey: ["config"],
-    queryFn: () => request<Record<string, unknown>>("/config"),
+    queryFn: () => request<Configuration>("/config"),
   });
   const client = useQueryClient();
   const [text, setText] = useState("");
@@ -387,12 +398,12 @@ function App() {
   const [snapshotError, setSnapshotError] = useState<unknown>();
   const snapshots = useQuery({
     queryKey: ["snapshots"],
-    queryFn: () => request<{ id: string; active: boolean }[]>("/snapshots"),
+    queryFn: () => request<Snapshot[]>("/snapshots"),
     refetchInterval: 10000,
   });
   const currentConfig = useQuery({
     queryKey: ["config"],
-    queryFn: () => request<Record<string, unknown>>("/config"),
+    queryFn: () => request<Configuration>("/config"),
   });
   const snapshotId =
     params.get("snapshot_id") ??
@@ -545,8 +556,8 @@ function App() {
                   "grain",
                   "Period",
                   [
-                    ["week", "Weekly"],
                     ["month", "Monthly"],
+                    ["week", "Weekly"],
                     ["year", "Yearly"],
                   ],
                 ],

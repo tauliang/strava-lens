@@ -1,3 +1,7 @@
+import type { components } from "./api-schema";
+export type ImportJob = components["schemas"]["ImportJobResponse"];
+export type Snapshot = components["schemas"]["SnapshotResponse"];
+export type Configuration = components["schemas"]["Configuration"];
 export interface Metric {
   key?: string;
   id?: string;

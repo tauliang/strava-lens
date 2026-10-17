@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "format": "prettier --write src vite.config.ts",
-    "format:check": "prettier --check src vite.config.ts"
+    "format:check": "prettier --check src vite.config.ts",
+    "generate:api": "python scripts/export-openapi.py && openapi-typescript openapi.json -o src/api-schema.ts && prettier --write src/api-schema.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
@@ -24,6 +25,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
     "jsdom": "^29.1.1",
+    "openapi-typescript": "7.10.1",
     "prettier": "^3.9.10",
     "typescript": "~5.9.0",
     "vite": "^7.1.0",
