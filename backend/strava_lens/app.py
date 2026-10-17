@@ -31,7 +31,7 @@ class Configuration(BaseModel):
     model_config = ConfigDict(extra="forbid")
     timezone: str = "UTC"
     exact_gps: bool = False
-    hr_zones: list[float] = Field(default_factory=list, max_length=10)
+    hr_zones: list[float | dict] = Field(default_factory=list, max_length=10)
     goals: list[dict] = Field(default_factory=list, max_length=100)
     gear_thresholds: list[dict] = Field(default_factory=list, max_length=100)
     overrides: list[dict] = Field(default_factory=list, max_length=1000)
@@ -177,6 +177,13 @@ def dashboard(
     dashboard_id: str, request: Request, session: DB, snapshot_id: str | None = None
 ):
     records, selected = snapshot_records(session, snapshot_id)
+    if dashboard_id == "data_health":
+        records += [
+            {"kind": "worker", **job_json(job)}
+            for job in session.scalars(
+                select(ImportJob).order_by(ImportJob.created_at.desc()).limit(100)
+            )
+        ]
     if dashboard_id == "activity_detail":
         activity_id = request.query_params.get("activity_id")
         if activity_id:
