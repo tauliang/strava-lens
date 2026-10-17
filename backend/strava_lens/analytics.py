@@ -433,6 +433,19 @@ def chart(records, activities, associated, key, filters, panel_id):
     )
     if source == "social":
         rows = [r for r in records if r.get("kind") == "social"]
+        if key in ("followers", "following", "pending", "mutual"):
+            unique = {}
+            for row in sorted(
+                rows, key=lambda r: r.get("import_epoch", r.get("timestamp", 0))
+            ):
+                unique.setdefault(row.get("archive_hash", row.get("event_id")), row)
+            rows = list(unique.values())
+        rows = [
+            r
+            for r in rows
+            if (not filters.get("start") or date_of(r) >= filters["start"])
+            and (not filters.get("end") or date_of(r) <= filters["end"])
+        ]
     groups = defaultdict(list)
     parents = {
         r["stream_revision_id"]: r for r in activities if r.get("stream_revision_id")
@@ -500,7 +513,8 @@ def chart(records, activities, associated, key, filters, panel_id):
     }
 
 
-def coverage_rows(activities):
+def coverage_rows(activities, filters=None):
+    filters = filters or {}
     grouped = defaultdict(list)
     for r in activities:
         grouped[(date_of(r)[:4], r.get("sport", "Unspecified"))].append(r)
@@ -517,6 +531,16 @@ def coverage_rows(activities):
                 r.get("stream_status") == "decoded" for r in items
             ),
             "flagged_activities": sum(bool(r.get("flagged")) for r in items),
+            "speed": aggregate(items, "speed", filters)[0],
+            "speed_unit": metadata("speed", filters.get("units", "metric"))["unit"],
+            "pace": aggregate(items, "pace", filters)[0],
+            "cadence": aggregate(items, "cadence", filters)[0],
+            "speed_coverage_pct": 100
+            * sum(eligible(r, "speed", filters) for r in items)
+            / len(items),
+            "cadence_coverage_pct": 100
+            * sum(eligible(r, "cadence", filters) for r in items)
+            / len(items),
         }
         for (year, sport), items in sorted(grouped.items())
     ]
@@ -526,7 +550,7 @@ def table_rows(pid, base, activities, associated, records, filters):
     mode = filters.get("mode_" + pid, MODES.get(pid, [""])[0])
     if pid in ("activities", "summary"):
         if mode == "Coverage":
-            return coverage_rows(activities)
+            return coverage_rows(activities, filters)
         if mode == "Annual changes":
             counts = Counter(
                 (date_of(r)[:4], r.get("sport", "Unspecified")) for r in activities
@@ -615,10 +639,10 @@ def table_rows(pid, base, activities, associated, records, filters):
                     "weight_basis": "Export units; activity dates, not weigh-in dates",
                 }
             ]
-        return coverage_rows(activities)
+        return coverage_rows(activities, filters)
     if pid in ("training_details", "sport_details"):
         if mode == "Annual coverage":
-            return coverage_rows(activities)
+            return coverage_rows(activities, filters)
         if mode == "HR observation coverage":
             zones = {
                 r.get("activity_id", r.get("stream_revision_id")): r
@@ -694,7 +718,14 @@ def table_rows(pid, base, activities, associated, records, filters):
         ]
     if pid in ("map", "geo_details"):
         if mode == "Sport coverage":
-            return coverage_rows(activities)
+            mapped = defaultdict(set)
+            for row in associated:
+                if row.get("kind") == "geography":
+                    mapped[row.get("sport", "Unspecified")].add(row.get("activity_id"))
+            return [
+                {"sport": sport, "mapped_activities": len(ids)}
+                for sport, ids in mapped.items()
+            ]
         cells = defaultdict(set)
         for r in associated:
             if r.get("kind") == "geography" and r.get("latitude") is not None:
@@ -805,6 +836,16 @@ def dashboard(dashboard_id, records, filters=None):
         {r.get("event_id", str(i)): r for i, r in enumerate(records)}.values()
     )
     base, activities, associated = selected(records, filters)
+    base = [
+        r
+        for r in base
+        if r.get("kind") != "social"
+        or r.get("social_type") != "interaction"
+        or (
+            (not filters.get("start") or date_of(r) >= filters["start"])
+            and (not filters.get("end") or date_of(r) <= filters["end"])
+        )
+    ]
     title, definitions = DASHBOARDS[dashboard_id]
     panels = []
     for pid, label, kind, allowed in definitions:

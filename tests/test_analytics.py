@@ -119,3 +119,56 @@ class AnalyticsTests(unittest.TestCase):
         )
         out = dashboard("geography", [a, geo])
         self.assertEqual(out["panels"][0]["rows"][0]["visits"], 1)
+
+    def test_ytd_uses_export_calendar_day(self):
+        a = activity("a", comparison_month_day="06-01")
+        b = activity("b", comparison_month_day="06-01")
+        b.update(local_date="2024-12-01")
+        out = dashboard("overview", [a, b], {"grain": "year", "history": "ytd"})
+        self.assertEqual(out["panels"][0]["value"], 1)
+
+    def test_local_calendar_not_utc_bucket(self):
+        a = activity("a", timestamp=1704067200)
+        a.update(local_date="2023-12-31")
+        out = dashboard("overview", [a], {"grain": "year"})
+        self.assertEqual(out["panels"][1]["series"][0]["data"][0]["x"], "2023")
+
+    def test_effort_comparison_preceding_recorded_weeks(self):
+        rows = []
+        for index, value in enumerate([10, 20, 30, 40, 50, 60]):
+            a = activity(
+                str(index),
+                local_week_start=f"2024-0{index + 1}-01",
+                relative_effort=value,
+            )
+            rows.append(a)
+        out = dashboard(
+            "training", rows, {"mode_training_details": "Effort comparison"}
+        )
+        self.assertEqual(out["panels"][2]["rows"][-1]["preceding_recorded_weeks"], 35)
+
+    def test_annual_changes_fills_missing_year(self):
+        a = activity("a")
+        b = activity("b")
+        b.update(local_date="2026-01-01")
+        out = dashboard("overview", [a, b], {"mode_activities": "Annual changes"})
+        rows = out["panels"][2]["rows"]
+        self.assertEqual(rows[1]["activities"], 0)
+        self.assertEqual(rows[1]["change_activities"], -1)
+        self.assertIsNone(rows[2]["yoy_pct"])
+
+    def test_annual_sport_coverage_has_speed_and_cadence(self):
+        a = activity("a", average_cadence=90)
+        out = dashboard(
+            "gear_sports",
+            [a],
+            {
+                "mode_sport_details": "Annual coverage",
+                "cadence": "strides",
+                "units": "imperial",
+            },
+        )
+        row = out["panels"][2]["rows"][0]
+        self.assertEqual(row["cadence"], 180)
+        self.assertEqual(row["speed_unit"], "MPH")
+        self.assertEqual(row["speed_coverage_pct"], 100)
